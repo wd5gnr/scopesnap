@@ -1,0 +1,126 @@
+#!/bin/bash
+SCOPE=rigollan.local
+PORT=5555
+if [ -z "$TMP" ]
+then
+  TMP=/tmp
+fi
+FILE=$TMP/image$$.raw
+BFILE=$FILE.bmp
+BATCH=0
+AUTO=0
+REPEAT=0
+DELAY=
+while getopts ":bBd:a:r:Ri:p:" OPT
+  do
+      case $OPT in
+     i) SCOPE=$OPTARG
+	;;
+     p) PORT=$OPTARG
+	;;
+     a) AUTO=1
+         TEMPLATE=$OPTARG
+         ;;
+     b) BATCH=1
+        ;;
+     B) BATCH=1
+        ;;
+     d) DELAY=$OPTARG
+        ;;
+     r) REPEAT=$OPTARG
+         ;;
+     R) REPEAT=-1   # repeat forever
+         ;;
+     *) >&2 echo Invalid argument
+        exit 1
+        ;;
+       esac
+      done
+shift $((OPTIND-1))
+RESULT="$1"
+if [ -z "$RESULT" -a $AUTO = 0 ]
+then
+  >&2 echo Usage: scopesnap [-B] [-d delay][-a template] [-i address] [-p port] [-r count] [-R]  file [file ...]
+  >&2 echo Where file is a file name
+  >&2 echo ending with the format you want
+  >&2 echo "(e.g., jpg or png or pdf)"
+  >&2 echo "Options:"
+  >&2 echo -b or -B - The image will not be opened after capture
+  >&2 echo "-d - Delay (in seconds) after each capture"
+  >&2 echo "-a - Auto generate file names from template"
+  >&2 echo "-r - Repeat for count captures (assumes one file name or -a)"
+  >&2 echo "-R - Repeat forever (assumes one file name or -a)"
+  >&2 echo "-i - Name or IP address of scope (default: rigollan.local)"
+  >&2 echo "-p - Port number (default: 5555) "
+  >&2 echo 73 de WD5GNR al.williams@awce.com
+  exit 1
+fi 
+echo -n 'Reading from '
+echo "*IDN?" | nc $SCOPE $PORT
+if [ ! $? == 0 ]
+then
+>&2 echo Scope not found. Aborting
+exit 2
+fi
+while [ ! -z "$1" -o $REPEAT != 0 -o $AUTO = 1  ]
+  do
+  if [ ! -z "$1" ]
+  then
+     RESULT="$1"
+     if [ $REPEAT == 0 ]
+     then
+       shift
+     fi
+  else
+     # this is the tricky part where we find the last thing that matches the template
+     # template is like abc.png to get abc1.png abc2.png etc.
+     TDIR=`dirname "$TEMPLATE"`
+     BASE=`basename "$TEMPLATE"`
+     PAT=${BASE//[0-9]*./\[0-9]*.}
+# small problem here. If we quote it the * gets taken literally
+# but if we don't quote, spaces in $PAT will mess things up. So we split it all up
+     N=`cd "$TDIR" ; ls $PAT | tail -n 1`
+     if [ $? = 0 ]
+     then
+       N=${N//[^0-9]/}
+       N=$(( N + 1 ))
+     else
+       N=1
+     fi
+     RESULT=${TEMPLATE//[0-9]*./$N.}
+  fi
+  echo Reading data for "$RESULT"
+  echo ":DISP:DATA?" | nc $SCOPE $PORT >$FILE
+  SIZE=`ls -l $FILE | cut -d ' ' -f 5`
+  SIZE=`expr $SIZE - 11`
+  tail -c $SIZE $FILE | head -c -3 >$BFILE
+  if convert $BFILE "$RESULT"
+  then
+    echo Wrote "$RESULT"
+  else
+    >&2 echo Error writing "$RESULT"
+  fi
+  rm $FILE $BFILE
+  if [ "$BATCH" == 0 ]
+  then
+     xdg-open "$RESULT" &
+  fi
+  if [ $AUTO = 1 -a $REPEAT = 0 ]
+  then
+    break
+  fi
+  if [ $REPEAT -gt 0 ]
+  then
+    REPEAT=$(( REPEAT - 1 ))
+    if [ $REPEAT = 0 ]
+    then
+      break
+    fi
+  fi
+  if [ ! -z "$DELAY" ]
+  then
+      echo Delaying $DELAY seconds
+      sleep $DELAY
+  fi
+done 
+exit 0
