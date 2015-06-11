@@ -11,9 +11,12 @@ BATCH=0
 AUTO=0
 REPEAT=0
 DELAY=
-while getopts ":bBd:a:r:Ri:p:" OPT
+TCMD=0
+while getopts ":bBd:a:r:Ri:p:t" OPT
   do
       case $OPT in
+     t) TCMD=1
+        ;;
      i) SCOPE=$OPTARG
 	;;
      p) PORT=$OPTARG
@@ -40,7 +43,7 @@ shift $((OPTIND-1))
 RESULT="$1"
 if [ -z "$RESULT" -a $AUTO = 0 ]
 then
-  >&2 echo Usage: scopesnap [-B] [-d delay][-a template] [-i address] [-p port] [-r count] [-R]  file [file ...]
+  >&2 echo Usage: scopesnap [-B] [-d delay][-a template] [-i address] [-p port] [-r count] [-t] [-R]  file [file ...]
   >&2 echo Where file is a file name
   >&2 echo ending with the format you want
   >&2 echo "(e.g., jpg or png or pdf)"
@@ -49,6 +52,7 @@ then
   >&2 echo "-d - Delay (in seconds) after each capture"
   >&2 echo "-a - Auto generate file names from template"
   >&2 echo "-r - Repeat for count captures (assumes one file name or -a)"
+  >&2 echo "-t - Add time/date stamp to image"
   >&2 echo "-R - Repeat forever (assumes one file name or -a)"
   >&2 echo "-i - Name or IP address of scope (default: rigollan.local)"
   >&2 echo "-p - Port number (default: 5555) "
@@ -94,7 +98,16 @@ while [ ! -z "$1" -o $REPEAT != 0 -o $AUTO = 1  ]
   SIZE=`ls -l $FILE | cut -d ' ' -f 5`
   SIZE=`expr $SIZE - 11`
   tail -c $SIZE $FILE | head -c -3 >$BFILE
-  if convert $BFILE "$RESULT"
+  ARGS=
+  if [ $TCMD = 1 ]
+  then
+      convert $BFILE -gravity SouthWest -pointsize 20 -fill white -annotate +450+0 "`date`" $RESULT
+      RV=$?
+  else
+      convert $BFILE $ARGS "$RESULT"
+      RV=$?
+  fi
+  if [ $RV = 0 ]
   then
     echo Wrote "$RESULT"
   else
