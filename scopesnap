@@ -60,12 +60,13 @@ then
   exit 1
 fi 
 echo -n 'Reading from '
-echo "*IDN?" | nc $SCOPE $PORT
+echo "*IDN?" | nc -t -w 10 $SCOPE $PORT
 if [ ! $? == 0 ]
 then
 >&2 echo Scope not found. Aborting
 exit 2
 fi
+sleep 1   # see if we give the scope time to recover if we stop stalls
 while [ ! -z "$1" -o $REPEAT != 0 -o $AUTO = 1  ]
   do
   if [ ! -z "$1" ]
@@ -94,7 +95,7 @@ while [ ! -z "$1" -o $REPEAT != 0 -o $AUTO = 1  ]
      RESULT=${TEMPLATE//[0-9]*./$N.}
   fi
   echo Reading data for "$RESULT"
-  echo ":DISP:DATA?" | nc $SCOPE $PORT >$FILE
+  echo ":DISP:DATA?" | nc -t -w10 $SCOPE $PORT >$FILE
   SIZE=`ls -l $FILE | cut -d ' ' -f 5`
   SIZE=`expr $SIZE - 11`
   tail -c $SIZE $FILE | head -c -3 >$BFILE
@@ -130,6 +131,7 @@ while [ ! -z "$1" -o $REPEAT != 0 -o $AUTO = 1  ]
       break
     fi
   fi
+  nc -t -w 1 $SCOPE $PORT  >/dev/null   # just in case extras left over
   if [ ! -z "$DELAY" ]
   then
       echo Delaying $DELAY seconds
