@@ -56,7 +56,7 @@ then
   >&2 echo "-R - Repeat forever (assumes one file name or -a)"
   >&2 echo "-i - Name or IP address of scope (default: rigollan.local)"
   >&2 echo "-p - Port number (default: 5555) "
-  >&2 echo 73 de WD5GNR al.williams@awce.com
+  >&2 echo 73 de WD5GNR al.williams@awce.com modified by MAF
   exit 1
 fi 
 echo -n 'Reading from '
@@ -96,9 +96,9 @@ while [ ! -z "$1" -o $REPEAT != 0 -o $AUTO = 1  ]
   fi
   echo Reading data for "$RESULT"
   echo ":DISP:DATA?" | nc -t -w10 $SCOPE $PORT >$FILE
-  SIZE=`ls -l $FILE | cut -d ' ' -f 5`
-  SIZE=`expr $SIZE - 11`
-  tail -c $SIZE $FILE | head -c -3 >$BFILE
+  COUNTSIZE=$(cut $FILE -c 2)
+  SIZE=$(cut $FILE -c3-$((2+$COUNTSIZE)))
+  dd if=$FILE bs=1 skip=$(($COUNTSIZE+2)) count=$SIZE >$BFILE
   ARGS=
   if [ $TCMD = 1 ]
   then
