@@ -1,7 +1,7 @@
 # Introduction
 
 Simple shell script to read screens off Rigol DS1xx4Z and similar scopes.
-Al Williams al.williams@awce.com
+Originally Al Williams al.williams@awce.com Forked By Mark Finn to fix a trailing trim issue.
 
 This uses the network connection (but could probably use /dev/usbtmc) and
 you can change the scope name/port # at the top of the script
